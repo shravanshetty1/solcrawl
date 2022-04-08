@@ -1,14 +1,13 @@
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::{RpcTransactionLogsConfig, RpcTransactionLogsFilter};
-use solana_client::rpc_response::Response;
-use solana_program::example_mocks::solana_sdk::transaction::Transaction;
+
 use solana_program::pubkey::Pubkey;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::signature::Signature;
-use solana_transaction_status::parse_instruction::ParsedInstruction;
+
 use solana_transaction_status::{
     EncodedTransaction, EncodedTransactionWithStatusMeta, UiCompiledInstruction, UiInstruction,
-    UiMessage, UiParsedInstruction,
+    UiMessage,
 };
 use spl_token::instruction::TokenInstruction;
 use std::error::Error;
@@ -28,12 +27,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Arc::new(solana_client::rpc_client::RpcClient::new(rpc_url));
     let hash = client.get_latest_blockhash()?;
     println!("Latest blockhash: {}", hash);
-    let (sub, recv) = solana_client::pubsub_client::PubsubClient::logs_subscribe(
+    let (_sub, recv) = solana_client::pubsub_client::PubsubClient::logs_subscribe(
         ws_url.as_str(),
         // RpcTransactionLogsFilter::Mentions(vec![JUPITER_PROGRAM.to_string()]),
         RpcTransactionLogsFilter::All,
         RpcTransactionLogsConfig {
-            commitment: Some((CommitmentConfig::finalized())),
+            commitment: Some(CommitmentConfig::finalized()),
         },
     )?;
 
@@ -52,8 +51,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("{:?}", tx);
         }
     }
-
-    Ok(())
 }
 
 pub struct SwapFilter {
@@ -70,7 +67,7 @@ impl SwapFilter {
         let mut account_keys: Vec<String> = Vec::new();
         if let EncodedTransaction::Json(tx) = tx.transaction {
             if let UiMessage::Raw(msg) = tx.message {
-                account_keys = msg.account_keys.clone()
+                account_keys = msg.account_keys
             }
         }
         if account_keys.is_empty() {
@@ -79,9 +76,9 @@ impl SwapFilter {
 
         let inner_instructions = tx
             .meta
-            .ok_or(format!("tx does not contain meta"))?
+            .ok_or("tx does not contain meta".to_string())?
             .inner_instructions
-            .ok_or(format!("tx does not contain inner instructions"))?;
+            .ok_or("tx does not contain inner instructions".to_string())?;
 
         // get all token_transfer instructions
         let mut token_transfer_instructions: Vec<UiCompiledInstruction> = Vec::new();
@@ -89,7 +86,7 @@ impl SwapFilter {
             for i in i.instructions {
                 if let UiInstruction::Compiled(i) = i {
                     let prog_id: &String = account_keys.index(i.program_id_index as usize);
-                    if prog_id.clone() == TOKEN_PROGRAM.to_string() {
+                    if prog_id.clone() == *TOKEN_PROGRAM {
                         let tok_instruction =
                             spl_token::instruction::TokenInstruction::unpack(i.data.as_bytes())?;
                         match tok_instruction {
@@ -109,24 +106,25 @@ impl SwapFilter {
         // TODO this can be optimised
         // if any of the token transfers are not a stable coin - filter
         for i in token_transfer_instructions {
-            let src_index = i.accounts.first().ok_or(format!(
-                "incorrect number of accounts for token transfer instruction"
-            ))?;
-            let src: &String = account_keys.index(src_index.clone() as usize);
+            let src_index = i
+                .accounts
+                .first()
+                .ok_or("incorrect number of accounts for token transfer instruction".to_string())?;
+            let src: &String = account_keys.index(*src_index as usize);
             let src = self
                 .client
                 .get_token_account(&Pubkey::from_str(src.as_str())?)?
-                .ok_or(format!("could not find source token_account"))?;
+                .ok_or("could not find source token_account".to_string())?;
             if !self.approved_mints.contains(&src.mint) {
                 return Ok(true);
             }
 
             let dst_index = i.accounts.index(1);
-            let dst: &String = account_keys.index(dst_index.clone() as usize);
+            let dst: &String = account_keys.index(*dst_index as usize);
             let dst = self
                 .client
                 .get_token_account(&Pubkey::from_str(dst.as_str())?)?
-                .ok_or(format!("could not find source token_account"))?;
+                .ok_or("could not find source token_account".to_string())?;
             if !self.approved_mints.contains(&dst.mint) {
                 return Ok(true);
             }
