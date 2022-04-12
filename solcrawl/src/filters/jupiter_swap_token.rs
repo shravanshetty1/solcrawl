@@ -1,10 +1,8 @@
 use solana_client::rpc_client::RpcClient;
-use solana_client::rpc_config::{RpcTransactionLogsConfig, RpcTransactionLogsFilter};
 
 use solana_program::pubkey::Pubkey;
-use solana_sdk::commitment_config::CommitmentConfig;
-use solana_sdk::signature::Signature;
 
+use crate::TransactionFilter;
 use solana_transaction_status::{
     EncodedTransaction, EncodedTransactionWithStatusMeta, UiCompiledInstruction, UiInstruction,
     UiMessage,
@@ -15,72 +13,20 @@ use std::ops::Index;
 use std::str::FromStr;
 use std::sync::Arc;
 
-const JUPITER_PROGRAM: &str = "JUP2jxvXaqu7NQY1GmNF4m1vodw12LVXYxbFL2uJvfo";
-const TOKEN_PROGRAM: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-
-const USDC_MINT: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-const USDT_MINT: &str = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
-const UST_MINT: &str = "9vMJfxuKxXBoEa7rM12mYLMwTacLMLDJqHozw96WQL8i";
-
-// TODO clients randomly fail due to degraded performance, do retries with exponential backoff
-// TODO refactor
-// TODO fix bugs
-// TODO store in DB
-fn main() {
-    loop {
-        let res = try_crawl();
-        if let Err(e) = res {
-            println!("{}", e);
-        }
-    }
+pub struct JupiterSwapToken {
+    pub client: Arc<RpcClient>,
+    pub approved_tokens: Vec<String>,
+    pub token_program: String,
 }
 
-pub fn try_crawl() -> Result<(), Box<dyn Error>> {
-    let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
-    let ws_url = "wss://api.mainnet-beta.solana.com".to_string();
-    let client = Arc::new(solana_client::rpc_client::RpcClient::new(rpc_url));
-    let (_sub, recv) = solana_client::pubsub_client::PubsubClient::logs_subscribe(
-        ws_url.as_str(),
-        RpcTransactionLogsFilter::Mentions(vec![JUPITER_PROGRAM.to_string()]),
-        RpcTransactionLogsConfig {
-            commitment: Some(CommitmentConfig::finalized()),
-        },
-    )?;
-
-    loop {
-        let sig = recv.recv()?.value.signature;
-        let sig = Signature::from_str(&sig)?;
-
-        println!("{}", sig);
-
-        let tx = client
-            .get_transaction(&sig, solana_transaction_status::UiTransactionEncoding::Json)?
-            .transaction;
-
-        let swap_filter = SwapFilter {
-            client: client.clone(),
-            approved_mints: vec![
-                USDC_MINT.to_string(),
-                USDT_MINT.to_string(),
-                UST_MINT.to_string(),
-            ],
-        };
-        if !swap_filter.filter(tx.clone()) {
-            println!("filtered - {:?}", tx);
-        }
-    }
-}
-
-pub struct SwapFilter {
-    client: Arc<RpcClient>,
-    approved_mints: Vec<String>,
-}
-
-impl SwapFilter {
-    pub fn filter(&self, tx: EncodedTransactionWithStatusMeta) -> bool {
+impl TransactionFilter for JupiterSwapToken {
+    fn filter(&self, tx: EncodedTransactionWithStatusMeta) -> bool {
         self.try_filter(tx).unwrap_or(true)
     }
+}
 
+// TODO add new method
+impl JupiterSwapToken {
     pub fn try_filter(&self, tx: EncodedTransactionWithStatusMeta) -> Result<bool, Box<dyn Error>> {
         let mut account_keys: Vec<String> = Vec::new();
         if let EncodedTransaction::Json(tx) = tx.transaction {
@@ -104,7 +50,7 @@ impl SwapFilter {
             for i in i.instructions {
                 if let UiInstruction::Compiled(i) = i {
                     let prog_id: &String = account_keys.index(i.program_id_index as usize);
-                    if prog_id.clone() == *TOKEN_PROGRAM {
+                    if prog_id.clone() == *self.token_program {
                         let decoded_instruction = bs58::decode(i.data.clone())
                             .into_vec()
                             .map_err(|e| e.to_string())?;
@@ -137,7 +83,7 @@ impl SwapFilter {
                 .client
                 .get_token_account(&Pubkey::from_str(src.as_str())?)?
                 .ok_or("could not find source token_account".to_string())?;
-            if !self.approved_mints.contains(&src.mint) {
+            if !self.approved_tokens.contains(&src.mint) {
                 return Ok(true);
             }
 
@@ -147,7 +93,7 @@ impl SwapFilter {
                 .client
                 .get_token_account(&Pubkey::from_str(dst.as_str())?)?
                 .ok_or("could not find source token_account".to_string())?;
-            if !self.approved_mints.contains(&dst.mint) {
+            if !self.approved_tokens.contains(&dst.mint) {
                 return Ok(true);
             }
         }
