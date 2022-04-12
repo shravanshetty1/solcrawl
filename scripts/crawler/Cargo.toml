@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 solcrawl = { path = "../../solcrawl", version = "0.1.0" }
 solana-client = "1.10.3"
+diesel = { version = "1.4.8", features = ["postgres"] }
+dotenv = "0.15.0"
+crossbeam = "0.8.1"
+solana-transaction-status = "1.10.8"

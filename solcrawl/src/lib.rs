@@ -13,10 +13,11 @@ pub struct Crawler {
     ws_url: String,
     program_addr: String,
     filters: Vec<Box<dyn TransactionFilter>>,
-    publisher: crossbeam::channel::Sender<EncodedTransactionWithStatusMeta>,
+    publisher: crossbeam::channel::Sender<(String, EncodedTransactionWithStatusMeta)>,
 }
 
 // TODO dont print to std out - use a logger
+// TODO add retry rpc client
 impl Crawler {
     pub fn new(
         program_addr: String,
@@ -25,7 +26,7 @@ impl Crawler {
         filters: Vec<Box<dyn TransactionFilter>>,
     ) -> (
         Self,
-        crossbeam::channel::Receiver<EncodedTransactionWithStatusMeta>,
+        crossbeam::channel::Receiver<(String, EncodedTransactionWithStatusMeta)>,
     ) {
         let (publisher, tx_recv) = crossbeam::channel::unbounded();
         (
@@ -44,7 +45,7 @@ impl Crawler {
         loop {
             let res = self.try_crawl();
             if let Err(e) = res {
-                println!("{}", e);
+                println!("crawl err - {}", e);
             }
         }
     }
@@ -64,9 +65,15 @@ impl Crawler {
 
             println!("{}", sig);
 
-            let tx = client
-                .get_transaction(&sig, solana_transaction_status::UiTransactionEncoding::Json)?
-                .transaction;
+            let tx: EncodedTransactionWithStatusMeta;
+            loop {
+                let res = client
+                    .get_transaction(&sig, solana_transaction_status::UiTransactionEncoding::Json);
+                if let Ok(res) = res {
+                    tx = res.transaction;
+                    break;
+                }
+            }
 
             let mut should_filter = false;
             for filter in &self.filters {
@@ -77,7 +84,7 @@ impl Crawler {
             }
 
             if !should_filter {
-                self.publisher.send(tx)?;
+                self.publisher.send((sig.to_string(), tx))?;
             }
         }
     }
