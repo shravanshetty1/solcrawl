@@ -1,4 +1,4 @@
-use crate::schema::tx;
+use crate::storage::schema::tx;
 
 #[derive(Debug, Insertable)]
 #[table_name = "tx"]

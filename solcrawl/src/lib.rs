@@ -18,6 +18,7 @@ pub struct Crawler {
 
 // TODO dont print to std out - use a logger
 // TODO add retry rpc client
+// TODO add rate limit
 impl Crawler {
     pub fn new(
         program_addr: String,

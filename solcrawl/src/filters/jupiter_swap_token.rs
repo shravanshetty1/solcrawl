@@ -1,18 +1,8 @@
-use solana_client::rpc_client::RpcClient;
-
-use solana_program::pubkey::Pubkey;
-
 use crate::TransactionFilter;
 use solana_transaction_status::{
-    EncodedTransaction, EncodedTransactionWithStatusMeta, UiCompiledInstruction, UiInstruction,
-    UiMessage, UiTransactionTokenBalance,
+    EncodedTransaction, EncodedTransactionWithStatusMeta, UiMessage, UiTransactionTokenBalance,
 };
-use spl_token::instruction::TokenInstruction;
 use std::error::Error;
-use std::mem::transmute;
-use std::ops::Index;
-use std::str::FromStr;
-use std::sync::Arc;
 
 pub struct JupiterSwapToken {
     pub approved_tokens: Vec<String>,
@@ -46,14 +36,10 @@ impl JupiterSwapToken {
             .ok_or("does not have pre token balances")?
             .into_iter()
             .filter(|t| {
-                if t.mint.starts_with("Sol") {
-                    return true;
-                }
-
                 if let Some(owner) = t.owner.clone() {
-                    owner != *tx_creator
+                    owner == *tx_creator
                 } else {
-                    true
+                    false
                 }
             })
             .collect::<Vec<UiTransactionTokenBalance>>();
