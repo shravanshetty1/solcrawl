@@ -11,10 +11,13 @@ use crate::storage::models::tx::Tx;
 use std::error::Error;
 use std::ops::Index;
 
-
-pub fn handle_txs(conn: PgConnection, recv: Receiver<(String, EncodedTransactionWithStatusMeta)>) {
+pub fn handle_txs(
+    approved_tokens: &Vec<String>,
+    conn: PgConnection,
+    recv: Receiver<(String, EncodedTransactionWithStatusMeta)>,
+) {
     loop {
-        let res = handle_tx(&conn, recv.clone());
+        let res = handle_tx(approved_tokens, &conn, recv.clone());
         if let Err(err) = res {
             println!("handle tx err - {}", err)
         }
@@ -22,12 +25,13 @@ pub fn handle_txs(conn: PgConnection, recv: Receiver<(String, EncodedTransaction
 }
 
 pub fn handle_tx(
+    approved_tokens: &Vec<String>,
     conn: &PgConnection,
     tx_recv: Receiver<(String, EncodedTransactionWithStatusMeta)>,
 ) -> Result<(), Box<dyn Error>> {
     loop {
         let (sig, tx) = tx_recv.recv()?;
-        let create_tx = build_create_tx_obj(sig.clone(), tx)?;
+        let create_tx = build_create_tx_obj(approved_tokens, sig.clone(), tx)?;
 
         let txs = crate::storage::schema::tx::table
             .filter(crate::storage::schema::tx::sig.eq(sig.as_str()))
@@ -47,6 +51,7 @@ pub fn handle_tx(
 }
 
 pub fn build_create_tx_obj(
+    approved_tokens: &Vec<String>,
     sig: String,
     tx: EncodedTransactionWithStatusMeta,
 ) -> Result<CreateTx, Box<dyn Error>> {
@@ -74,6 +79,7 @@ pub fn build_create_tx_obj(
                 false
             }
         })
+        .filter(|t| approved_tokens.contains(&t.mint))
         .collect::<Vec<UiTransactionTokenBalance>>();
     pre.sort_by(|t1, t2| Ord::cmp(&t1.mint, &t2.mint));
 
@@ -88,6 +94,7 @@ pub fn build_create_tx_obj(
                 false
             }
         })
+        .filter(|t| approved_tokens.contains(&t.mint))
         .collect::<Vec<UiTransactionTokenBalance>>();
     post.sort_by(|t1, t2| Ord::cmp(&t1.mint, &t2.mint));
 

@@ -25,12 +25,13 @@ diesel_migrations::embed_migrations!();
 
 // crawling jupiter for stable swaps
 fn main() -> Result<(), Box<dyn Error>> {
+    let approved_tokens = vec![
+        USDC_MINT.to_string(),
+        USDT_MINT.to_string(),
+        UST_MINT.to_string(),
+    ];
     let swap_filter = Box::new(JupiterSwapToken {
-        approved_tokens: vec![
-            USDC_MINT.to_string(),
-            USDT_MINT.to_string(),
-            UST_MINT.to_string(),
-        ],
+        approved_tokens: approved_tokens.clone(),
         token_program: TOKEN_PROGRAM.to_string(),
     });
 
@@ -44,7 +45,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let conn = storage::conn::establish_connection()?;
     embedded_migrations::run(&conn)?;
-    std::thread::spawn(move || crate::handle_txs::handle_txs(conn, recv));
+    std::thread::spawn(move || crate::handle_txs::handle_txs(&approved_tokens, conn, recv));
 
     println!("started crawling, please wait - establishing web socket connection (this can take upto 20 seconds)");
     crawler.crawl();
