@@ -7,11 +7,12 @@ use solana_transaction_status::{
 
 use crate::storage::models::create_tx::CreateTx;
 
+use crate::storage::models::tx::Tx;
 use std::error::Error;
 use std::ops::Index;
 
-pub fn handle_txs(recv: Receiver<(String, EncodedTransactionWithStatusMeta)>) {
-    let conn = crate::storage::conn::establish_connection();
+
+pub fn handle_txs(conn: PgConnection, recv: Receiver<(String, EncodedTransactionWithStatusMeta)>) {
     loop {
         let res = handle_tx(&conn, recv.clone());
         if let Err(err) = res {
@@ -26,7 +27,16 @@ pub fn handle_tx(
 ) -> Result<(), Box<dyn Error>> {
     loop {
         let (sig, tx) = tx_recv.recv()?;
-        let create_tx = build_create_tx_obj(sig, tx)?;
+        let create_tx = build_create_tx_obj(sig.clone(), tx)?;
+
+        let txs = crate::storage::schema::tx::table
+            .filter(crate::storage::schema::tx::sig.eq(sig.as_str()))
+            .load::<Tx>(conn)?;
+
+        if !txs.is_empty() {
+            println!("tx with sig already exists in database - {}", sig);
+            continue;
+        }
 
         println!("{:?}", create_tx);
 

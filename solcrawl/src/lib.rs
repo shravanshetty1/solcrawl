@@ -5,6 +5,8 @@ use solana_sdk::signature::Signature;
 use solana_transaction_status::EncodedTransactionWithStatusMeta;
 use std::error::Error;
 use std::str::FromStr;
+use std::thread::sleep;
+use std::time::Duration;
 
 pub mod filters;
 
@@ -14,17 +16,17 @@ pub struct Crawler {
     program_addr: String,
     filters: Vec<Box<dyn TransactionFilter>>,
     publisher: crossbeam::channel::Sender<(String, EncodedTransactionWithStatusMeta)>,
+    sleep_duration: Option<Duration>,
 }
 
 // TODO dont print to std out - use a logger
-// TODO add retry rpc client
-// TODO add rate limit
 impl Crawler {
     pub fn new(
         program_addr: String,
         rpc_url: String,
         ws_url: String,
         filters: Vec<Box<dyn TransactionFilter>>,
+        sleep_duration: Option<Duration>,
     ) -> (
         Self,
         crossbeam::channel::Receiver<(String, EncodedTransactionWithStatusMeta)>,
@@ -37,6 +39,7 @@ impl Crawler {
                 program_addr,
                 filters,
                 publisher,
+                sleep_duration,
             },
             tx_recv,
         )
@@ -68,6 +71,10 @@ impl Crawler {
 
             let tx: EncodedTransactionWithStatusMeta;
             loop {
+                if let Some(dur) = self.sleep_duration.clone() {
+                    sleep(dur);
+                }
+
                 let res = client
                     .get_transaction(&sig, solana_transaction_status::UiTransactionEncoding::Json);
                 if let Ok(res) = res {

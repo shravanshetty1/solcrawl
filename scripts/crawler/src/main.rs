@@ -18,9 +18,6 @@ const USDC_MINT: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const USDT_MINT: &str = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 const UST_MINT: &str = "9vMJfxuKxXBoEa7rM12mYLMwTacLMLDJqHozw96WQL8i";
 
-// TODO store amounts as float?
-// TODO check if transaction already exists
-
 // crawling jupiter for stable swaps
 fn main() -> Result<(), Box<dyn Error>> {
     let swap_filter = Box::new(JupiterSwapToken {
@@ -37,9 +34,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         RPC_URL.to_string(),
         WS_URL.to_string(),
         vec![swap_filter],
+        None,
     );
 
-    std::thread::spawn(move || crate::handle_txs::handle_txs(recv));
+    let conn = storage::conn::establish_connection()?;
+    std::thread::spawn(move || crate::handle_txs::handle_txs(conn, recv));
 
     println!("started crawling, please wait - establishing web socket connection (this can take upto 20 seconds)");
     crawler.crawl();
