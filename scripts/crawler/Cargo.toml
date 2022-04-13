@@ -12,3 +12,4 @@ diesel = { version = "1.4.8", features = ["postgres"] }
 dotenv = "0.15.0"
 crossbeam = "0.8.1"
 solana-transaction-status = "1.10.8"
+diesel_migrations = "1.4.0"
