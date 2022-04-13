@@ -59,6 +59,10 @@ impl JupiterSwapToken {
             .collect::<Vec<UiTransactionTokenBalance>>();
         all_post.sort_by(|t1, t2| Ord::cmp(&t1.mint, &t2.mint));
 
+        if all_pre.len() != all_post.len() {
+            return Err("unexpected token balances length".into());
+        }
+
         let mut pre: Vec<UiTransactionTokenBalance> = Vec::new();
         let mut post: Vec<UiTransactionTokenBalance> = Vec::new();
         for i in 0..all_pre.len() {
@@ -74,8 +78,8 @@ impl JupiterSwapToken {
             }
         }
 
-        if pre.len() != 2 || pre.len() != post.len() {
-            return Err("unexpected token balances".into());
+        if pre.len() != 2 {
+            return Err("unexpected token balances length".into());
         }
 
         for tok in pre.iter() {
