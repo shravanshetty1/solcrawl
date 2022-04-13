@@ -16,6 +16,7 @@ impl TransactionFilter for JupiterSwapToken {
     }
 }
 
+// TODO improve algorithm currently swaps such as USDT > USDC > UST are being filtered out
 impl JupiterSwapToken {
     pub fn try_filter(&self, tx: EncodedTransactionWithStatusMeta) -> Result<bool, Box<dyn Error>> {
         let mut account_keys: Vec<String> = Vec::new();
