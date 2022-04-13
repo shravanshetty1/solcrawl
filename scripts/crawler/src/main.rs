@@ -1,6 +1,7 @@
 use solcrawl::filters::jupiter_swap_token::JupiterSwapToken;
 
 use std::error::Error;
+use std::time::Duration;
 
 #[macro_use]
 extern crate diesel;
@@ -40,7 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         RPC_URL.to_string(),
         WS_URL.to_string(),
         vec![swap_filter],
-        None,
+        Some(Duration::from_millis(500)),
     );
 
     let conn = storage::conn::establish_connection()?;
