@@ -69,8 +69,8 @@ impl Crawler {
 
             println!("{}", sig);
 
-            let tx: EncodedTransactionWithStatusMeta;
-            loop {
+            let mut tx: Option<EncodedTransactionWithStatusMeta> = None;
+            for _ in 0..5 {
                 if let Some(dur) = self.sleep_duration.clone() {
                     sleep(dur);
                 }
@@ -78,21 +78,23 @@ impl Crawler {
                 let res = client
                     .get_transaction(&sig, solana_transaction_status::UiTransactionEncoding::Json);
                 if let Ok(res) = res {
-                    tx = res.transaction;
+                    tx = Some(res.transaction);
                     break;
                 }
             }
 
-            let mut should_filter = false;
-            for filter in &self.filters {
-                if filter.filter(tx.clone()) {
-                    should_filter = true;
-                    break;
+            if let Some(tx) = tx {
+                let mut should_filter = false;
+                for filter in &self.filters {
+                    if filter.filter(tx.clone()) {
+                        should_filter = true;
+                        break;
+                    }
                 }
-            }
 
-            if !should_filter {
-                self.publisher.send((sig.to_string(), tx))?;
+                if !should_filter {
+                    self.publisher.send((sig.to_string(), tx))?;
+                }
             }
         }
     }
