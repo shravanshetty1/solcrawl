@@ -68,7 +68,7 @@ pub fn build_create_tx_obj(
         .clone();
 
     let meta = tx.meta.ok_or("tx does not contain metadata")?;
-    let mut pre = meta
+    let mut all_pre = meta
         .pre_token_balances
         .ok_or("does not have pre token balances")?
         .into_iter()
@@ -79,11 +79,10 @@ pub fn build_create_tx_obj(
                 false
             }
         })
-        .filter(|t| approved_tokens.contains(&t.mint))
         .collect::<Vec<UiTransactionTokenBalance>>();
-    pre.sort_by(|t1, t2| Ord::cmp(&t1.mint, &t2.mint));
+    all_pre.sort_by(|t1, t2| Ord::cmp(&t1.mint, &t2.mint));
 
-    let mut post = meta
+    let mut all_post = meta
         .post_token_balances
         .ok_or("does not have post token balances")?
         .into_iter()
@@ -94,12 +93,32 @@ pub fn build_create_tx_obj(
                 false
             }
         })
-        .filter(|t| approved_tokens.contains(&t.mint))
         .collect::<Vec<UiTransactionTokenBalance>>();
-    post.sort_by(|t1, t2| Ord::cmp(&t1.mint, &t2.mint));
+    all_post.sort_by(|t1, t2| Ord::cmp(&t1.mint, &t2.mint));
+
+    let mut pre: Vec<UiTransactionTokenBalance> = Vec::new();
+    let mut post: Vec<UiTransactionTokenBalance> = Vec::new();
+    for i in 0..all_pre.len() {
+        let diff = all_pre
+            .index(i)
+            .ui_token_amount
+            .amount
+            .parse::<u64>()?
+            .abs_diff(all_post.index(i).ui_token_amount.amount.parse::<u64>()?);
+        if diff > 0 {
+            pre.push(all_pre.index(i).clone());
+            post.push(all_post.index(i).clone());
+        }
+    }
 
     if pre.len() != 2 || pre.len() != post.len() {
         return Err("unexpected token balances".into());
+    }
+
+    for tok in pre.iter() {
+        if !approved_tokens.contains(&tok.mint) {
+            return Err(format!("unexpected tok type - {}", tok.mint).into());
+        }
     }
 
     let mut input_index: usize = 1;
