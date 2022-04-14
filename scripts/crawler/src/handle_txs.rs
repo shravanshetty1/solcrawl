@@ -14,10 +14,10 @@ use std::ops::Index;
 pub fn handle_txs(
     approved_tokens: &Vec<String>,
     conn: PgConnection,
-    recv: Receiver<(String, EncodedTransactionWithStatusMeta)>,
+    recvs: Vec<Receiver<(String, EncodedTransactionWithStatusMeta)>>,
 ) {
     loop {
-        let res = handle_tx(approved_tokens, &conn, recv.clone());
+        let res = handle_tx(approved_tokens, &conn, recvs.clone());
         if let Err(err) = res {
             println!("handle tx err - {}", err)
         }
@@ -27,10 +27,17 @@ pub fn handle_txs(
 pub fn handle_tx(
     approved_tokens: &Vec<String>,
     conn: &PgConnection,
-    tx_recv: Receiver<(String, EncodedTransactionWithStatusMeta)>,
+    tx_recvs: Vec<Receiver<(String, EncodedTransactionWithStatusMeta)>>,
 ) -> Result<(), Box<dyn Error>> {
+    let mut sel = crossbeam::channel::Select::new();
+    tx_recvs.iter().for_each(|recv| {
+        sel.recv(recv);
+        ()
+    });
     loop {
-        let (sig, tx) = tx_recv.recv()?;
+        let opr = sel.select();
+        let i = opr.index();
+        let (sig, tx) = opr.recv(tx_recvs.index(i))?;
         let create_tx = build_create_tx_obj(approved_tokens, sig.clone(), tx)?;
 
         let txs = crate::storage::schema::tx::table

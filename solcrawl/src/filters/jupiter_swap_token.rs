@@ -5,6 +5,7 @@ use solana_transaction_status::{
 use std::error::Error;
 use std::ops::Index;
 
+#[derive(Clone)]
 pub struct JupiterSwapToken {
     pub approved_tokens: Vec<String>,
     pub token_program: String,

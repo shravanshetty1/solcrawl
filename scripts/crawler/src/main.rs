@@ -36,20 +36,28 @@ fn main() -> Result<(), Box<dyn Error>> {
         token_program: TOKEN_PROGRAM.to_string(),
     });
 
-    let (crawler, recv) = solcrawl::Crawler::new(
+    let (ws_crawler, ws_recv) = solcrawl::WebSocketCrawler::new(
         JUPITER_PROGRAM.to_string(),
         RPC_URL.to_string(),
         WS_URL.to_string(),
+        vec![swap_filter.clone()],
+        Some(Duration::from_millis(500)),
+    );
+
+    let (mut h_crawler, h_recv) = solcrawl::HistoricalCrawler::new(
+        JUPITER_PROGRAM.to_string(),
+        RPC_URL.to_string(),
         vec![swap_filter],
         Some(Duration::from_millis(500)),
     );
 
+    std::thread::spawn(move || ws_crawler.crawl());
+    std::thread::spawn(move || h_crawler.crawl());
+
     let conn = storage::conn::establish_connection()?;
     embedded_migrations::run(&conn)?;
-    std::thread::spawn(move || crate::handle_txs::handle_txs(&approved_tokens, conn, recv));
-
     println!("started crawling, please wait - establishing web socket connection (this can take upto 20 seconds)");
-    crawler.crawl();
+    crate::handle_txs::handle_txs(&approved_tokens, conn, vec![ws_recv, h_recv]);
 
     Ok(())
 }
