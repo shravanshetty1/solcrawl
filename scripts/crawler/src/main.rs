@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         RPC_URL.to_string(),
         WS_URL.to_string(),
         vec![swap_filter.clone()],
-        Some(Duration::from_millis(1000)),
+        Some(Duration::from_millis(500)),
     );
 
     let (mut h_crawler, h_recv) = solcrawl::crawlers::historical_crawler::HistoricalCrawler::new(
