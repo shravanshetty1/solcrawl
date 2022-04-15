@@ -6,5 +6,6 @@ table! {
         output_token -> Varchar,
         input_amount -> Int8,
         output_amount -> Int8,
+        block_time -> Int8,
     }
 }

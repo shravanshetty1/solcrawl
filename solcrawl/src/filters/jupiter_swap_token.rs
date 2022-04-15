@@ -1,6 +1,7 @@
 use crate::TransactionFilter;
 use solana_transaction_status::{
-    EncodedTransaction, EncodedTransactionWithStatusMeta, UiMessage, UiTransactionTokenBalance,
+    EncodedConfirmedTransactionWithStatusMeta, EncodedTransaction, UiMessage,
+    UiTransactionTokenBalance,
 };
 use std::error::Error;
 use std::ops::Index;
@@ -12,13 +13,17 @@ pub struct JupiterSwapToken {
 }
 
 impl TransactionFilter for JupiterSwapToken {
-    fn filter(&self, tx: EncodedTransactionWithStatusMeta) -> bool {
+    fn filter(&self, tx: &EncodedConfirmedTransactionWithStatusMeta) -> bool {
         self.try_filter(tx).unwrap_or(true)
     }
 }
 
 impl JupiterSwapToken {
-    pub fn try_filter(&self, tx: EncodedTransactionWithStatusMeta) -> Result<bool, Box<dyn Error>> {
+    pub fn try_filter(
+        &self,
+        tx: &EncodedConfirmedTransactionWithStatusMeta,
+    ) -> Result<bool, Box<dyn Error>> {
+        let tx = tx.transaction.clone();
         let mut account_keys: Vec<String> = Vec::new();
         if let EncodedTransaction::Json(tx) = tx.transaction {
             if let UiMessage::Raw(msg) = tx.message {

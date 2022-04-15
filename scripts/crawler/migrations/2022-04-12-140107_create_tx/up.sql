@@ -4,5 +4,6 @@ CREATE TABLE tx (
   input_token VARCHAR NOT NULL,
   output_token VARCHAR NOT NULL,
   input_amount BIGINT NOT NULL,
-  output_amount BIGINT NOT NULL
+  output_amount BIGINT NOT NULL,
+  block_time BIGINT NOT NULL
 );

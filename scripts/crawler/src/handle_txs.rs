@@ -2,7 +2,8 @@ use crossbeam::channel::Receiver;
 use diesel::prelude::*;
 
 use solana_transaction_status::{
-    EncodedTransaction, EncodedTransactionWithStatusMeta, UiMessage, UiTransactionTokenBalance,
+    EncodedConfirmedTransactionWithStatusMeta, EncodedTransaction, UiMessage,
+    UiTransactionTokenBalance,
 };
 
 use crate::storage::models::create_tx::CreateTx;
@@ -12,9 +13,9 @@ use std::error::Error;
 use std::ops::Index;
 
 pub fn handle_txs(
-    approved_tokens: &Vec<String>,
+    approved_tokens: &[String],
     conn: PgConnection,
-    recvs: Vec<Receiver<(String, EncodedTransactionWithStatusMeta)>>,
+    recvs: Vec<Receiver<(String, EncodedConfirmedTransactionWithStatusMeta)>>,
 ) {
     loop {
         let res = handle_tx(approved_tokens, &conn, recvs.clone());
@@ -25,14 +26,13 @@ pub fn handle_txs(
 }
 
 pub fn handle_tx(
-    approved_tokens: &Vec<String>,
+    approved_tokens: &[String],
     conn: &PgConnection,
-    tx_recvs: Vec<Receiver<(String, EncodedTransactionWithStatusMeta)>>,
+    tx_recvs: Vec<Receiver<(String, EncodedConfirmedTransactionWithStatusMeta)>>,
 ) -> Result<(), Box<dyn Error>> {
     let mut sel = crossbeam::channel::Select::new();
     tx_recvs.iter().for_each(|recv| {
         sel.recv(recv);
-        ()
     });
     loop {
         let opr = sel.select();
@@ -58,10 +58,11 @@ pub fn handle_tx(
 }
 
 pub fn build_create_tx_obj(
-    approved_tokens: &Vec<String>,
+    approved_tokens: &[String],
     sig: String,
-    tx: EncodedTransactionWithStatusMeta,
+    confirmed_tx: EncodedConfirmedTransactionWithStatusMeta,
 ) -> Result<CreateTx, Box<dyn Error>> {
+    let tx = confirmed_tx.transaction;
     let mut account_keys: Vec<String> = Vec::new();
     if let EncodedTransaction::Json(tx) = tx.transaction {
         if let UiMessage::Raw(msg) = tx.message {
@@ -178,5 +179,9 @@ pub fn build_create_tx_obj(
         output_token,
         input_amount: input_amount as i64,
         output_amount: output_amount as i64,
+        block_time: confirmed_tx
+            .block_time
+            .ok_or("tx does not contain blocktime")?
+            .abs(),
     })
 }

@@ -1,5 +1,7 @@
 use solcrawl::filters::jupiter_swap_token::JupiterSwapToken;
 
+use crate::storage::models::tx::Tx;
+use diesel::prelude::*;
 use std::error::Error;
 use std::time::Duration;
 
@@ -26,6 +28,19 @@ diesel_migrations::embed_migrations!();
 
 // crawling jupiter for stable swaps
 fn main() -> Result<(), Box<dyn Error>> {
+    let conn = storage::conn::establish_connection()?;
+    embedded_migrations::run(&conn)?;
+
+    let mut curr_sig: Option<String> = None;
+    let res = crate::storage::schema::tx::table
+        .order(crate::storage::schema::tx::block_time.asc())
+        .first::<Tx>(&conn);
+    if let Ok(tx) = res {
+        curr_sig = Some(tx.sig)
+    }
+
+    println!("curr_sig - {:?}", curr_sig);
+
     let approved_tokens = vec![
         USDC_MINT.to_string(),
         USDT_MINT.to_string(),
@@ -36,26 +51,25 @@ fn main() -> Result<(), Box<dyn Error>> {
         token_program: TOKEN_PROGRAM.to_string(),
     });
 
-    let (ws_crawler, ws_recv) = solcrawl::WebSocketCrawler::new(
+    let (ws_crawler, ws_recv) = solcrawl::crawlers::websocket_crawler::WebSocketCrawler::new(
         JUPITER_PROGRAM.to_string(),
         RPC_URL.to_string(),
         WS_URL.to_string(),
         vec![swap_filter.clone()],
-        Some(Duration::from_millis(500)),
+        Some(Duration::from_millis(1000)),
     );
 
-    let (mut h_crawler, h_recv) = solcrawl::HistoricalCrawler::new(
+    let (mut h_crawler, h_recv) = solcrawl::crawlers::historical_crawler::HistoricalCrawler::new(
         JUPITER_PROGRAM.to_string(),
         RPC_URL.to_string(),
         vec![swap_filter],
         Some(Duration::from_millis(500)),
-    );
+        curr_sig,
+    )?;
 
     std::thread::spawn(move || ws_crawler.crawl());
     std::thread::spawn(move || h_crawler.crawl());
 
-    let conn = storage::conn::establish_connection()?;
-    embedded_migrations::run(&conn)?;
     println!("started crawling, please wait - establishing web socket connection (this can take upto 20 seconds)");
     crate::handle_txs::handle_txs(&approved_tokens, conn, vec![ws_recv, h_recv]);
 

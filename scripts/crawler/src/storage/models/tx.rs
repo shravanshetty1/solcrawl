@@ -6,4 +6,5 @@ pub struct Tx {
     pub output_token: String,
     pub input_amount: i64,
     pub output_amount: i64,
+    pub block_time: i64,
 }
