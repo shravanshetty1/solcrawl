@@ -51,7 +51,7 @@ impl WebSocketCrawler {
         loop {
             let res = self.try_crawl();
             if let Err(e) = res {
-                println!("crawl err - {}", e);
+                println!("ws crawl err - {}", e);
             }
         }
     }
@@ -69,7 +69,7 @@ impl WebSocketCrawler {
             let sig = recv.recv()?.value.signature;
             let sig = Signature::from_str(&sig)?;
 
-            println!("{}", sig);
+            println!("ws crawler - {}", sig);
 
             let mut tx: Option<EncodedConfirmedTransactionWithStatusMeta> = None;
             for _ in 0..5 {

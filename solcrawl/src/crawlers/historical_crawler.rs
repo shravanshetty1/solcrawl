@@ -60,7 +60,7 @@ impl HistoricalCrawler {
         loop {
             let res = self.try_crawl();
             if let Err(e) = res {
-                println!("crawl err - {}", e);
+                println!("hs crawl err - {}", e);
             }
         }
     }
@@ -81,7 +81,7 @@ impl HistoricalCrawler {
                 let sig = Signature::from_str(tx_status.signature.as_str())?;
                 self.curr_sig = Some(sig);
 
-                println!("{}", sig);
+                println!("hs crawler - {}", sig);
 
                 let mut tx: Option<EncodedConfirmedTransactionWithStatusMeta> = None;
                 for _ in 0..5 {

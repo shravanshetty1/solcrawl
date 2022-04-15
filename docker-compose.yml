@@ -21,8 +21,8 @@ services:
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgres://postgres:test123@crawler_postgres/postgres
-    working_dir: "/usr/src/solcrawler/scripts/crawler"
-    command: cargo run
+    working_dir: "/app/solcrawler/scripts/crawler"
+    command: cargo run --release
 
 volumes:
   crawler-vol-pg: {}
