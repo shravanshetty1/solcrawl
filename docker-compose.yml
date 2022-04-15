@@ -20,7 +20,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgres://anon:anon@postgres/anon
+      DATABASE_URL: postgres://postgres:test123@crawler_postgres/postgres
     working_dir: "/usr/src/solcrawler/scripts/crawler"
     command: cargo run
 
