@@ -1,0 +1,28 @@
+version: '3.4'
+
+services:
+  # Database
+  crawler_postgres:
+    container_name: crawler_postgres
+    image: postgres:11-alpine
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: test123
+    volumes:
+      - crawler-vol-pg:/var/lib/postgresql/data
+    command: -c "log_statement=all"
+
+  crawler:
+    container_name: crawler
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://anon:anon@postgres/anon
+    working_dir: "/usr/src/solcrawler/scripts/crawler"
+    command: cargo run
+
+volumes:
+  crawler-vol-pg: {}
