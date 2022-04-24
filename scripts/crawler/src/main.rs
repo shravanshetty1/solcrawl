@@ -56,14 +56,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         RPC_URL.to_string(),
         WS_URL.to_string(),
         vec![swap_filter.clone()],
-        Some(Duration::from_millis(500)),
+        None,
     );
 
     let (mut h_crawler, h_recv) = solcrawl::crawlers::historical_crawler::HistoricalCrawler::new(
         JUPITER_PROGRAM.to_string(),
         RPC_URL.to_string(),
         vec![swap_filter],
-        Some(Duration::from_millis(500)),
+        None,
         curr_sig,
     )?;
 
